@@ -20,7 +20,9 @@ refresh_status = {
     'start_time': None,
     'end_time': None,
     'error': None,
-    'result': None  # {'projects': int, 'units': int}
+    'result': None,  # {'projects': int, 'units': int}
+    'current_step': None,  # 当前步骤描述
+    'logs': []  # 日志信息
 }
 
 @app.route('/')
@@ -125,6 +127,25 @@ def get_latest_properties():
             'error': f'获取数据失败: {error_msg}'
         }), 500
 
+def _add_log(message):
+    """添加日志到状态"""
+    global refresh_status
+    timestamp = datetime.now().isoformat()
+    log_entry = f"[{timestamp}] {message}"
+    print(log_entry)
+    with refresh_lock:
+        refresh_status['logs'].append(log_entry)
+        # 只保留最近50条日志
+        if len(refresh_status['logs']) > 50:
+            refresh_status['logs'] = refresh_status['logs'][-50:]
+
+def _update_step(step):
+    """更新当前步骤"""
+    global refresh_status
+    with refresh_lock:
+        refresh_status['current_step'] = step
+    _add_log(f"步骤: {step}")
+
 def _refresh_task():
     """后台执行数据刷新任务"""
     global refresh_status
@@ -136,17 +157,37 @@ def _refresh_task():
             refresh_status['end_time'] = None
             refresh_status['error'] = None
             refresh_status['result'] = None
+            refresh_status['current_step'] = '初始化任务'
+            refresh_status['logs'] = []
         
-        print(f"[{start_time}] 开始后台刷新数据...")
+        _add_log("开始后台刷新数据...")
+        _update_step("正在抓取数据...")
+        
         result = scraper.fetch_all_properties()
+        
+        if not result:
+            end_time = datetime.now().isoformat()
+            error_msg = '数据抓取失败，未返回有效数据'
+            with refresh_lock:
+                refresh_status['is_running'] = False
+                refresh_status['end_time'] = end_time
+                refresh_status['error'] = error_msg
+                refresh_status['current_step'] = '数据抓取失败'
+            _add_log(error_msg)
+            return
+        
+        units = result['total_available_units']
+        projects = result['total_projects']
+        
+        _add_log(f"数据抓取成功: {projects} 个项目，共 {units} 套")
+        _update_step(f"正在保存数据 ({projects} 个项目，{units} 套)...")
+        
+        # 保存数据到数据库
+        success = db.save_record(units, projects, result)
         
         end_time = datetime.now().isoformat()
         
-        if result:
-            units = result['total_available_units']
-            projects = result['total_projects']
-            db.save_record(units, projects, result)
-            
+        if success:
             with refresh_lock:
                 refresh_status['is_running'] = False
                 refresh_status['end_time'] = end_time
@@ -154,14 +195,17 @@ def _refresh_task():
                     'projects': projects,
                     'units': units
                 }
-            
-            print(f"[{end_time}] 数据刷新完成: {projects} 个项目，共 {units} 套")
+                refresh_status['current_step'] = '任务完成'
+            _add_log(f"数据保存成功: {projects} 个项目，共 {units} 套")
         else:
+            error_msg = '数据保存到数据库失败'
             with refresh_lock:
                 refresh_status['is_running'] = False
                 refresh_status['end_time'] = end_time
-                refresh_status['error'] = '数据抓取失败，未返回有效数据'
-            print(f"[{end_time}] 数据抓取失败")
+                refresh_status['error'] = error_msg
+                refresh_status['current_step'] = '数据保存失败'
+            _add_log(error_msg)
+            
     except Exception as e:
         import traceback
         error_msg = str(e)
@@ -171,9 +215,10 @@ def _refresh_task():
             refresh_status['is_running'] = False
             refresh_status['end_time'] = end_time
             refresh_status['error'] = error_msg
+            refresh_status['current_step'] = f'发生错误: {error_msg[:50]}'
         
-        print(f"[{end_time}] 刷新数据时发生错误: {error_msg}")
-        print(traceback.format_exc())
+        _add_log(f"刷新数据时发生错误: {error_msg}")
+        _add_log(f"错误详情: {traceback.format_exc()}")
 
 @app.route('/api/refresh', methods=['POST'])
 def refresh_data():

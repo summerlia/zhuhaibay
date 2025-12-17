@@ -1858,9 +1858,71 @@
             }
         }
         
+        // 显示刷新状态详情
+        function showRefreshStatus(status) {
+            const statusDiv = document.getElementById('refreshStatus') || createStatusDiv();
+            
+            if (!status) {
+                statusDiv.style.display = 'none';
+                return;
+            }
+            
+            statusDiv.style.display = 'block';
+            
+            let html = '<div style="background: white; padding: 15px; border-radius: 8px; margin: 10px 0; border: 1px solid #e2e8f0;">';
+            html += '<div style="font-weight: 600; margin-bottom: 10px; color: #1a202c;">刷新任务状态</div>';
+            
+            if (status.is_running) {
+                const elapsed = Math.floor((Date.now() - new Date(status.start_time).getTime()) / 1000);
+                html += `<div style="color: #6366f1; margin-bottom: 5px;">⏳ 运行中 (已运行 ${elapsed} 秒)</div>`;
+                if (status.current_step) {
+                    html += `<div style="color: #64748b; font-size: 0.9em; margin-bottom: 10px;">${status.current_step}</div>`;
+                }
+            } else {
+                if (status.error) {
+                    html += `<div style="color: #dc3545; margin-bottom: 5px;">❌ 失败</div>`;
+                    html += `<div style="color: #721c24; background: #f8d7da; padding: 8px; border-radius: 4px; margin-top: 5px; font-size: 0.9em;">${status.error}</div>`;
+                } else if (status.result) {
+                    html += `<div style="color: #28a745; margin-bottom: 5px;">✅ 完成</div>`;
+                    html += `<div style="color: #155724; font-size: 0.9em;">在售项目: ${status.result.projects} 个，待售套数: ${status.result.units} 套</div>`;
+                }
+            }
+            
+            // 显示最近的日志
+            if (status.logs && status.logs.length > 0) {
+                html += '<div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #e2e8f0;">';
+                html += '<div style="font-size: 0.85em; color: #64748b; font-weight: 600; margin-bottom: 5px;">最近日志:</div>';
+                html += '<div style="background: #f8f9fa; padding: 8px; border-radius: 4px; max-height: 150px; overflow-y: auto; font-family: monospace; font-size: 0.8em; color: #495057;">';
+                status.logs.slice(-10).forEach(log => {
+                    html += `<div style="margin-bottom: 2px;">${log}</div>`;
+                });
+                html += '</div></div>';
+            }
+            
+            html += '</div>';
+            statusDiv.innerHTML = html;
+        }
+        
+        // 创建状态显示区域
+        function createStatusDiv() {
+            const statusDiv = document.createElement('div');
+            statusDiv.id = 'refreshStatus';
+            statusDiv.style.position = 'fixed';
+            statusDiv.style.top = '80px';
+            statusDiv.style.right = '20px';
+            statusDiv.style.width = '400px';
+            statusDiv.style.zIndex = '1000';
+            statusDiv.style.display = 'none';
+            document.body.appendChild(statusDiv);
+            return statusDiv;
+        }
+        
         // 轮询刷新任务状态
         async function pollRefreshStatus(btn, startTime) {
             const status = await checkRefreshStatus();
+            
+            // 显示状态
+            showRefreshStatus(status);
             
             if (!status) {
                 // 如果无法获取状态，继续轮询
@@ -1871,7 +1933,7 @@
             if (status.is_running) {
                 // 任务仍在运行，显示运行时间
                 const elapsed = Math.floor((Date.now() - new Date(status.start_time).getTime()) / 1000);
-                btn.textContent = `⏳ 刷新中... (${elapsed}秒)`;
+                btn.textContent = `⏳ ${status.current_step || '刷新中...'} (${elapsed}秒)`;
                 setTimeout(() => pollRefreshStatus(btn, startTime), 3000);
             } else {
                 // 任务已完成
@@ -1880,10 +1942,12 @@
                 if (status.error) {
                     // 有错误
                     btn.textContent = '❌ 刷新失败';
-                    alert(`数据刷新失败：\n${status.error}`);
+                    const errorMsg = status.error + (status.logs && status.logs.length > 0 ? '\n\n最近日志:\n' + status.logs.slice(-5).join('\n') : '');
+                    alert(`数据刷新失败：\n${errorMsg}`);
                     setTimeout(() => {
                         btn.textContent = '🔄 刷新数据';
-                    }, 3000);
+                        document.getElementById('refreshStatus').style.display = 'none';
+                    }, 5000);
                 } else if (status.result) {
                     // 成功
                     btn.textContent = '✅ 刷新完成';
@@ -1893,10 +1957,12 @@
                     await loadData();
                     setTimeout(() => {
                         btn.textContent = '🔄 刷新数据';
-                    }, 2000);
+                        document.getElementById('refreshStatus').style.display = 'none';
+                    }, 3000);
                 } else {
                     // 未知状态
                     btn.textContent = '🔄 刷新数据';
+                    document.getElementById('refreshStatus').style.display = 'none';
                 }
             }
         }
