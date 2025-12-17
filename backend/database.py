@@ -1,11 +1,16 @@
 import sqlite3
 import json
+import os
 from datetime import datetime
 from typing import List, Dict, Optional
 
 class Database:
     def __init__(self, db_path: str = 'data/properties.db'):
         self.db_path = db_path
+        # 确保目录存在
+        db_dir = os.path.dirname(db_path)
+        if db_dir and not os.path.exists(db_dir):
+            os.makedirs(db_dir, exist_ok=True)
         self.init_db()
     
     def init_db(self):
