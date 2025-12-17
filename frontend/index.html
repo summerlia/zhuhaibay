@@ -1829,16 +1829,16 @@
             }
         }
         
-        // 刷新数据
+        // 刷新数据（异步任务）
         async function refreshData() {
             const btn = document.getElementById('refreshBtn');
             btn.disabled = true;
-            btn.textContent = '⏳ 刷新中...';
+            btn.textContent = '⏳ 启动中...';
             
             try {
                 const response = await fetch(`${API_BASE}/refresh`, {
                     method: 'POST',
-                    signal: AbortSignal.timeout(300000) // 5分钟超时
+                    signal: AbortSignal.timeout(30000) // 30秒超时（只需等待任务启动）
                 });
                 
                 // 先读取响应文本（只能读取一次）
@@ -1874,27 +1874,39 @@
                 }
                 
                 if (result.success) {
-                    const projects = result.data.total_projects || 0;
-                    const units = result.data.available_units;
-                    alert(`数据刷新成功！\n在售项目: ${projects} 个\n待售套数: ${units} 套`);
-                    await loadData();
+                    // 任务已启动，开始轮询检查结果
+                    btn.textContent = '⏳ 刷新中...';
+                    alert('数据刷新任务已启动，正在后台处理中。\n请等待30-60秒后点击"重新加载"查看最新数据。');
+                    
+                    // 等待一段时间后自动检查
+                    setTimeout(async () => {
+                        btn.textContent = '🔄 检查结果...';
+                        await loadData();
+                        btn.textContent = '🔄 刷新数据';
+                        btn.disabled = false;
+                    }, 45000); // 45秒后自动检查
+                    
+                    // 也允许用户手动检查
+                    btn.disabled = false;
+                    btn.textContent = '🔄 检查结果';
                 } else {
-                    alert('数据刷新失败: ' + (result.error || '未知错误'));
+                    alert('刷新失败: ' + (result.error || '未知错误'));
+                    btn.disabled = false;
+                    btn.textContent = '🔄 刷新数据';
                 }
             } catch (error) {
                 console.error('刷新失败:', error);
                 let errorMsg = '刷新失败';
                 if (error.name === 'AbortError' || error.name === 'TimeoutError') {
-                    errorMsg = '请求超时，数据抓取可能需要较长时间，请稍后再试';
-                } else if (error.message.includes('502') || error.message.includes('Bad Gateway') || response?.status === 502) {
-                    errorMsg = '服务器暂时不可用。数据抓取可能需要较长时间，超过了服务器负载均衡器的超时限制。\n\n建议：\n1. 等待30-60秒后重试\n2. 数据可能仍在后台处理中，请稍后查看最新记录';
+                    errorMsg = '请求超时，请稍后重试';
+                } else if (error.message.includes('502') || error.message.includes('Bad Gateway')) {
+                    errorMsg = '服务器暂时不可用，请稍后再试';
                 } else if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
                     errorMsg = '网络连接失败，请检查网络连接';
                 } else {
                     errorMsg = '刷新失败: ' + error.message;
                 }
                 alert(errorMsg);
-            } finally {
                 btn.disabled = false;
                 btn.textContent = '🔄 刷新数据';
             }
