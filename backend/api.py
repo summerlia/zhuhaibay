@@ -2,6 +2,7 @@ from flask import Flask, jsonify, send_from_directory
 from flask_cors import CORS
 import os
 import threading
+import urllib.parse
 from datetime import datetime
 from backend.database import Database
 from backend.scraper import PropertyScraper
@@ -25,47 +26,99 @@ def index():
 @app.route('/api/records', methods=['GET'])
 def get_records():
     """获取所有历史记录"""
-    records = db.get_all_records()
-    return jsonify({
-        'success': True,
-        'data': records
-    })
+    try:
+        records = db.get_all_records()
+        return jsonify({
+            'success': True,
+            'data': records
+        })
+    except Exception as e:
+        import traceback
+        error_msg = str(e)
+        print(f"获取历史记录失败: {error_msg}")
+        print(traceback.format_exc())
+        return jsonify({
+            'success': False,
+            'error': f'获取数据失败: {error_msg}'
+        }), 500
 
 @app.route('/api/latest', methods=['GET'])
 def get_latest():
     """获取最新记录"""
-    record = db.get_latest_record()
-    return jsonify({
-        'success': True,
-        'data': record
-    })
+    try:
+        record = db.get_latest_record()
+        return jsonify({
+            'success': True,
+            'data': record
+        })
+    except Exception as e:
+        import traceback
+        error_msg = str(e)
+        print(f"获取最新记录失败: {error_msg}")
+        print(traceback.format_exc())
+        return jsonify({
+            'success': False,
+            'error': f'获取数据失败: {error_msg}'
+        }), 500
 
 @app.route('/api/properties', methods=['GET'])
 def get_properties():
     """获取所有楼盘列表"""
-    properties = db.get_property_list()
-    return jsonify({
-        'success': True,
-        'data': properties
-    })
+    try:
+        properties = db.get_property_list()
+        return jsonify({
+            'success': True,
+            'data': properties
+        })
+    except Exception as e:
+        import traceback
+        error_msg = str(e)
+        print(f"获取楼盘列表失败: {error_msg}")
+        print(traceback.format_exc())
+        return jsonify({
+            'success': False,
+            'error': f'获取数据失败: {error_msg}'
+        }), 500
 
-@app.route('/api/property/<property_name>', methods=['GET'])
+@app.route('/api/property/<path:property_name>', methods=['GET'])
 def get_property_history(property_name):
     """获取指定楼盘的历史数据"""
-    history = db.get_property_history(property_name)
-    return jsonify({
-        'success': True,
-        'data': history
-    })
+    try:
+        # Flask 会自动解码 URL，但为了安全再次解码
+        property_name = urllib.parse.unquote(property_name)
+        history = db.get_property_history(property_name)
+        return jsonify({
+            'success': True,
+            'data': history
+        })
+    except Exception as e:
+        import traceback
+        error_msg = str(e)
+        print(f"获取楼盘历史数据失败: {property_name}, 错误: {error_msg}")
+        print(traceback.format_exc())
+        return jsonify({
+            'success': False,
+            'error': f'获取数据失败: {error_msg}'
+        }), 500
 
 @app.route('/api/properties/latest', methods=['GET'])
 def get_latest_properties():
     """获取最新的所有楼盘数据"""
-    properties = db.get_latest_properties()
-    return jsonify({
-        'success': True,
-        'data': properties
-    })
+    try:
+        properties = db.get_latest_properties()
+        return jsonify({
+            'success': True,
+            'data': properties
+        })
+    except Exception as e:
+        import traceback
+        error_msg = str(e)
+        print(f"获取最新楼盘数据失败: {error_msg}")
+        print(traceback.format_exc())
+        return jsonify({
+            'success': False,
+            'error': f'获取数据失败: {error_msg}'
+        }), 500
 
 def _refresh_task():
     """后台执行数据刷新任务"""

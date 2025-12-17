@@ -1360,7 +1360,21 @@
                     
                     try {
                         const historyResponse = await fetch(`${API_BASE}/property/${encodeURIComponent(propName)}`);
-                        const historyResult = await historyResponse.json();
+                        
+                        // 检查响应状态
+                        if (!historyResponse.ok) {
+                            console.warn(`获取 ${propName} 数据失败: HTTP ${historyResponse.status}`);
+                            continue; // 跳过这个楼盘，继续处理下一个
+                        }
+                        
+                        const responseText = await historyResponse.text();
+                        let historyResult;
+                        try {
+                            historyResult = JSON.parse(responseText);
+                        } catch (e) {
+                            console.warn(`解析 ${propName} 响应失败:`, e);
+                            continue; // 跳过这个楼盘，继续处理下一个
+                        }
                         
                         if (historyResult.success && historyResult.data.length >= 2) {
                             const records = historyResult.data;
