@@ -1,5 +1,6 @@
 """
-WSGI entry point for Render deployment
+Fallback entry point for Render auto-detection
+This file allows Render to use the default 'gunicorn app:app' command
 """
 import sys
 import os
