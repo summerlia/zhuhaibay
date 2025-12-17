@@ -1,0 +1,1818 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>云玺花园 - 房产销售监控</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+            background: #f5f7fa;
+            min-height: 100vh;
+            padding: 0;
+            position: relative;
+            overflow-x: hidden;
+        }
+        
+        body::before {
+            content: '';
+            position: fixed;
+            top: -50%;
+            right: -10%;
+            width: 800px;
+            height: 800px;
+            background: radial-gradient(circle, rgba(99, 102, 241, 0.08) 0%, transparent 70%);
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 0;
+        }
+        
+        body::after {
+            content: '';
+            position: fixed;
+            bottom: -30%;
+            left: -10%;
+            width: 600px;
+            height: 600px;
+            background: radial-gradient(circle, rgba(236, 72, 153, 0.06) 0%, transparent 70%);
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 0;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            position: relative;
+            z-index: 1;
+            padding: 30px 20px;
+        }
+        
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 35px;
+            animation: fadeInDown 0.8s ease-out;
+            padding: 0 10px;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+        
+        .header-content {
+            flex: 1;
+        }
+        
+        .header h1 {
+            font-size: 2.8em;
+            margin-bottom: 8px;
+            font-weight: 800;
+            color: #1a202c;
+            letter-spacing: -1px;
+        }
+        
+        .header p {
+            font-size: 1.05em;
+            color: #64748b;
+            font-weight: 400;
+        }
+        
+        .header-actions {
+            display: flex;
+            gap: 12px;
+        }
+        
+        @keyframes fadeInDown {
+            from {
+                opacity: 0;
+                transform: translateY(-30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .stats-card {
+            background: transparent;
+            padding: 0;
+            margin-bottom: 30px;
+            animation: fadeInUp 0.8s ease-out 0.2s both;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 20px;
+            margin-bottom: 0;
+        }
+        
+        .stat-item {
+            background: white;
+            padding: 28px;
+            border-radius: 24px;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+        }
+        
+        .stat-item::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, #6366f1, #ec4899);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        
+        .stat-item:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 12px 24px rgba(99, 102, 241, 0.12);
+            border-color: #6366f1;
+        }
+        
+        .stat-item:hover::before {
+            opacity: 1;
+        }
+        
+        .stat-label {
+            color: #64748b;
+            font-size: 0.875em;
+            margin-bottom: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .stat-value {
+            color: #1a202c;
+            font-size: 2.5em;
+            font-weight: 800;
+            line-height: 1;
+        }
+        
+        .stat-item:nth-child(1) .stat-value {
+            color: #6366f1;
+        }
+        
+        .stat-item:nth-child(2) .stat-value {
+            color: #ec4899;
+        }
+        
+        .stat-item:nth-child(3) .stat-value {
+            color: #8b5cf6;
+        }
+        
+        .chart-container {
+            background: white;
+            border-radius: 24px;
+            padding: 32px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+            margin-bottom: 20px;
+            border: 1px solid #e2e8f0;
+            animation: fadeInUp 0.8s ease-out 0.4s both;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        .chart-container:hover {
+            box-shadow: 0 12px 24px rgba(0, 0, 0, 0.08);
+        }
+        
+        #rankingChartContainer {
+            position: relative;
+        }
+        
+        #rankingNavigation {
+            margin-top: 20px;
+        }
+        
+        #rankingNavigation button {
+            background: #6366f1;
+            color: white;
+            border: none;
+            padding: 10px 24px;
+            border-radius: 12px;
+            cursor: pointer;
+            font-size: 0.9em;
+            transition: all 0.2s;
+        }
+        
+        #rankingNavigation button:hover {
+            background: #4f46e5;
+            transform: translateY(-2px);
+        }
+        
+        #rankingNavigation span {
+            display: inline-block;
+            line-height: 40px;
+            font-weight: 500;
+        }
+        
+        .chart-title {
+            font-size: 1.5em;
+            margin-bottom: 24px;
+            color: #1a202c;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+        }
+        
+        .button-group {
+            display: flex;
+            gap: 12px;
+            justify-content: flex-start;
+            margin-top: 24px;
+            flex-wrap: wrap;
+        }
+        
+        .header-actions button {
+            margin-top: 0;
+        }
+        
+        button {
+            background: #6366f1;
+            color: white;
+            border: none;
+            padding: 12px 28px;
+            border-radius: 16px;
+            font-size: 0.95em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 2px 8px rgba(99, 102, 241, 0.2);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        button:hover {
+            background: #4f46e5;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(99, 102, 241, 0.3);
+        }
+        
+        button:active {
+            transform: translateY(0);
+        }
+        
+        button:disabled {
+            background: #cbd5e1;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        
+        button:nth-child(2) {
+            background: white;
+            color: #6366f1;
+            border: 2px solid #6366f1;
+            box-shadow: none;
+        }
+        
+        button:nth-child(2):hover {
+            background: #f0f1ff;
+            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.15);
+        }
+        
+        .loading {
+            text-align: center;
+            color: white;
+            font-size: 1.2em;
+            padding: 20px;
+        }
+        
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+            text-align: center;
+        }
+        
+        .footer {
+            text-align: center;
+            color: #64748b;
+            margin-top: 40px;
+            padding: 30px;
+            background: white;
+            border-radius: 24px;
+            border: 1px solid #e2e8f0;
+            animation: fadeInUp 0.8s ease-out 0.8s both;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+        }
+        
+        .footer p {
+            margin: 6px 0;
+            font-size: 0.9em;
+            font-weight: 400;
+        }
+        
+        /* 响应式设计 */
+        @media (max-width: 768px) {
+            .container {
+                padding: 20px 15px;
+            }
+            
+            .header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            
+            .header-actions {
+                width: 100%;
+                justify-content: flex-start;
+            }
+            
+            .header h1 {
+                font-size: 2em;
+            }
+            
+            .stats-grid {
+                grid-template-columns: 1fr;
+                gap: 15px;
+            }
+            
+            .chart-container, .table-container {
+                padding: 24px 20px;
+            }
+            
+            .stat-item {
+                padding: 24px;
+            }
+            
+            button {
+                padding: 10px 24px;
+                font-size: 0.9em;
+            }
+        }
+        
+        /* 滚动条美化 */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 4px;
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+        
+        /* 加载动画 */
+        .loading-spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 0.6s linear infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .table-container {
+            background: white;
+            border-radius: 24px;
+            padding: 32px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+            margin-bottom: 20px;
+            overflow-x: auto;
+            border: 1px solid #e2e8f0;
+            animation: fadeInUp 0.8s ease-out 0.6s both;
+        }
+        
+        .data-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            margin-top: 20px;
+        }
+        
+        .data-table th {
+            background: #f8fafc;
+            color: #64748b;
+            padding: 14px 16px;
+            text-align: left;
+            font-weight: 600;
+            font-size: 0.85em;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-bottom: 2px solid #e2e8f0;
+        }
+        
+        .data-table th:first-child {
+            border-top-left-radius: 12px;
+        }
+        
+        .data-table th:last-child {
+            border-top-right-radius: 12px;
+        }
+        
+        .data-table td {
+            padding: 16px;
+            border-bottom: 1px solid #f1f5f9;
+            transition: all 0.2s ease;
+            color: #334155;
+            font-size: 0.95em;
+        }
+        
+        .data-table tbody tr {
+            transition: all 0.2s ease;
+        }
+        
+        .data-table tbody tr:hover {
+            background: #f8fafc;
+        }
+        
+        .data-table tr:last-child td {
+            border-bottom: none;
+        }
+        
+        .table-title {
+            font-size: 1.5em;
+            margin-bottom: 8px;
+            color: #1a202c;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+        }
+        
+        /* 楼盘选择器样式 */
+        .property-selector {
+            background: white;
+            border-radius: 24px;
+            padding: 28px 32px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+            margin-bottom: 20px;
+            border: 1px solid #e2e8f0;
+        }
+        
+        .selector-title {
+            font-size: 1.1em;
+            color: #1a202c;
+            font-weight: 600;
+            margin-bottom: 15px;
+        }
+        
+        .selector-content {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        
+        .property-search-wrapper {
+            flex: 1;
+            min-width: 300px;
+            position: relative;
+        }
+        
+        .property-search-input {
+            width: 100%;
+            padding: 10px 40px 10px 15px;
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            font-size: 0.95em;
+            color: #1a202c;
+            background: white;
+            transition: all 0.2s;
+        }
+        
+        .property-search-input:hover {
+            border-color: #6366f1;
+        }
+        
+        .property-search-input:focus {
+            outline: none;
+            border-color: #6366f1;
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+        }
+        
+        .search-icon {
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #94a3b8;
+            pointer-events: none;
+        }
+        
+        .property-dropdown {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            margin-top: 5px;
+            background: white;
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+            z-index: 1000;
+            display: none;
+        }
+        
+        .property-dropdown.show {
+            display: block;
+        }
+        
+        .property-option {
+            padding: 10px 15px;
+            cursor: pointer;
+            transition: background 0.2s;
+            font-size: 0.9em;
+            color: #334155;
+        }
+        
+        .property-option:hover {
+            background: #f8fafc;
+        }
+        
+        .property-option.selected {
+            background: #ede9fe;
+            color: #6366f1;
+            font-weight: 600;
+        }
+        
+        .property-option.no-results {
+            color: #94a3b8;
+            text-align: center;
+            cursor: default;
+        }
+        
+        .property-option.no-results:hover {
+            background: white;
+        }
+        
+        select {
+            flex: 1;
+            min-width: 200px;
+            padding: 10px 15px;
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            font-size: 0.95em;
+            color: #1a202c;
+            background: white;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: none;
+        }
+        
+        select:hover {
+            border-color: #6366f1;
+        }
+        
+        select:focus {
+            outline: none;
+            border-color: #6366f1;
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+        }
+        
+
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="header-content">
+                <h1>珠海房产监控</h1>
+                <p>实时在售房产数据监控与分析</p>
+            </div>
+            <div class="header-actions">
+                <button onclick="refreshData()" id="refreshBtn">刷新数据</button>
+                <button onclick="loadData()">重新加载</button>
+            </div>
+        </div>
+        
+        <div class="stats-card">
+            <div class="stats-grid">
+                <div class="stat-item">
+                    <div class="stat-label">在售项目</div>
+                    <div class="stat-value" id="totalProjects">-</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-label">待售套数</div>
+                    <div class="stat-value" id="currentUnits">-</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-label">总记录数</div>
+                    <div class="stat-value" id="totalRecords">-</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-label">最后更新</div>
+                    <div class="stat-value" id="lastUpdate" style="font-size: 1.2em;">-</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="chart-container" id="speedRankingContainer">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 15px;">
+                <h2 class="chart-title" id="speedRankingTitle" style="margin: 0;">卖出速度排名 TOP 25</h2>
+                <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                    <label style="color: #64748b; font-size: 0.9em;">日期范围:</label>
+                    <input type="date" id="startDate" style="padding: 8px 12px; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 0.9em;">
+                    <span style="color: #64748b;">至</span>
+                    <input type="date" id="endDate" style="padding: 8px 12px; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 0.9em;">
+                    <button onclick="updateSpeedRanking()" style="padding: 8px 20px; font-size: 0.9em;">更新</button>
+                </div>
+            </div>
+            <canvas id="speedRankingChart"></canvas>
+            <div id="speedRankingNavigation"></div>
+        </div>
+        
+        <div class="property-selector">
+            <div class="selector-title">楼盘选择</div>
+            <div class="selector-content">
+                <div class="property-search-wrapper">
+                    <input 
+                        type="text" 
+                        id="propertySearchInput" 
+                        class="property-search-input" 
+                        placeholder="搜索楼盘名称..."
+                        autocomplete="off"
+                        onfocus="showPropertyDropdown()"
+                        oninput="filterProperties()"
+                    />
+                    <span class="search-icon">🔍</span>
+                    <div id="propertyDropdown" class="property-dropdown"></div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="chart-container">
+            <h2 class="chart-title" id="trendChartTitle">待售房产趋势</h2>
+            <canvas id="trendChart"></canvas>
+        </div>
+        
+        <div class="chart-container">
+            <h2 class="chart-title" id="salesChartTitle">月度销售统计</h2>
+            <div style="margin-bottom: 15px;">
+                <button onclick="backToMonthly()" id="backBtn" style="display: none;">← 返回月度统计</button>
+            </div>
+            <canvas id="monthlySalesChart"></canvas>
+        </div>
+        
+        <div class="table-container">
+            <h2 class="table-title">历史数据记录</h2>
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>序号</th>
+                        <th>记录时间</th>
+                        <th>待售套数</th>
+                        <th>变化</th>
+                    </tr>
+                </thead>
+                <tbody id="dataTableBody">
+                    <tr>
+                        <td colspan="4" style="text-align: center; color: #999;">暂无数据</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        
+        <div class="footer">
+            <p>数据来源: 珠海市住房和城乡建设局</p>
+            <p>每天 9:00 自动更新</p>
+        </div>
+    </div>
+    
+    <script>
+        const API_BASE = 'http://localhost:8080/api';
+        let chart = null;
+        let monthlySalesChart = null;
+        let speedRankingChart = null;
+        let allRecords = []; // 保存所有记录数据
+        let currentView = 'monthly'; // 当前视图：monthly 或 weekly
+        let allProperties = []; // 所有楼盘列表
+        let currentProperty = '云玺花园'; // 当前选中的楼盘
+        
+        // 初始化图表
+        function initChart(labels, data) {
+            const ctx = document.getElementById('trendChart').getContext('2d');
+            
+            if (chart) {
+                chart.destroy();
+            }
+            
+            chart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: '待售套数',
+                        data: data,
+                        borderColor: '#667eea',
+                        backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                        borderWidth: 3,
+                        fill: true,
+                        tension: 0.4,
+                        pointRadius: 5,
+                        pointHoverRadius: 7,
+                        pointBackgroundColor: '#667eea',
+                        pointBorderColor: '#fff',
+                        pointBorderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top'
+                        },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false,
+                            backgroundColor: 'rgba(0,0,0,0.8)',
+                            padding: 12,
+                            titleFont: { size: 14 },
+                            bodyFont: { size: 13 }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: false,
+                            ticks: {
+                                font: { size: 12 },
+                                stepSize: 1,
+                                callback: function(value) {
+                                    if (Number.isInteger(value)) {
+                                        return value;
+                                    }
+                                }
+                            },
+                            grid: {
+                                color: 'rgba(0,0,0,0.05)'
+                            }
+                        },
+                        x: {
+                            ticks: {
+                                font: { size: 11 },
+                                maxRotation: 45,
+                                minRotation: 45
+                            },
+                            grid: {
+                                display: false
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        
+        // 初始化月度销售统计图表
+        function initMonthlySalesChart(records) {
+            const ctx = document.getElementById('monthlySalesChart').getContext('2d');
+            
+            if (monthlySalesChart) {
+                monthlySalesChart.destroy();
+            }
+            
+            // 按月份分组统计销售数量
+            const monthlyData = {};
+            
+            for (let i = 1; i < records.length; i++) {
+                const currentRecord = records[i];
+                const previousRecord = records[i - 1];
+                
+                const date = new Date(currentRecord.timestamp);
+                const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+                
+                // 计算销售数量（待售减少的数量）
+                const sold = previousRecord.available_units - currentRecord.available_units;
+                
+                if (sold > 0) {
+                    if (!monthlyData[monthKey]) {
+                        monthlyData[monthKey] = 0;
+                    }
+                    monthlyData[monthKey] += sold;
+                }
+            }
+            
+            // 排序月份
+            const sortedMonths = Object.keys(monthlyData).sort();
+            const labels = sortedMonths.map(month => {
+                const [year, m] = month.split('-');
+                return `${year}年${m}月`;
+            });
+            const data = sortedMonths.map(month => monthlyData[month]);
+            
+            monthlySalesChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: '已售套数',
+                        data: data,
+                        backgroundColor: 'rgba(102, 126, 234, 0.8)',
+                        borderColor: '#667eea',
+                        borderWidth: 2,
+                        borderRadius: 8,
+                        hoverBackgroundColor: 'rgba(102, 126, 234, 1)'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    onClick: (event, elements) => {
+                        if (elements.length > 0) {
+                            const index = elements[0].index;
+                            const monthKey = sortedMonths[index];
+                            showWeeklySales(monthKey);
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top'
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(0,0,0,0.8)',
+                            padding: 12,
+                            titleFont: { size: 14 },
+                            bodyFont: { size: 13 },
+                            callbacks: {
+                                label: function(context) {
+                                    return `已售: ${context.parsed.y} 套`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                font: { size: 12 },
+                                stepSize: 1,
+                                callback: function(value) {
+                                    if (Number.isInteger(value)) {
+                                        return value;
+                                    }
+                                }
+                            },
+                            grid: {
+                                color: 'rgba(0,0,0,0.05)'
+                            }
+                        },
+                        x: {
+                            ticks: {
+                                font: { size: 12 }
+                            },
+                            grid: {
+                                display: false
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        
+        // 显示周度销售统计
+        function showWeeklySales(monthKey) {
+            const ctx = document.getElementById('monthlySalesChart').getContext('2d');
+            
+            if (monthlySalesChart) {
+                monthlySalesChart.destroy();
+            }
+            
+            const [year, month] = monthKey.split('-');
+            const startDate = new Date(year, parseInt(month) - 1, 1);
+            const endDate = new Date(year, parseInt(month), 0);
+            
+            // 筛选该月的记录
+            const monthRecords = allRecords.filter(record => {
+                const date = new Date(record.timestamp);
+                return date >= startDate && date <= endDate;
+            });
+            
+            // 按周分组统计（周一到周日为一周）
+            const weeklyData = {};
+            
+            for (let i = 1; i < monthRecords.length; i++) {
+                const currentRecord = monthRecords[i];
+                const previousRecord = monthRecords[i - 1];
+                
+                const date = new Date(currentRecord.timestamp);
+                
+                // 获取该日期所在周的周一日期
+                const dayOfWeek = date.getDay();
+                const diff = dayOfWeek === 0 ? -6 : 1 - dayOfWeek; // 周日特殊处理
+                const monday = new Date(date);
+                monday.setDate(date.getDate() + diff);
+                monday.setHours(0, 0, 0, 0);
+                
+                const weekKey = monday.toISOString().split('T')[0];
+                
+                // 计算销售数量
+                const sold = previousRecord.available_units - currentRecord.available_units;
+                
+                if (sold > 0) {
+                    if (!weeklyData[weekKey]) {
+                        weeklyData[weekKey] = 0;
+                    }
+                    weeklyData[weekKey] += sold;
+                }
+            }
+            
+            // 排序周
+            const sortedWeeks = Object.keys(weeklyData).sort();
+            const labels = sortedWeeks.map(weekStart => {
+                const start = new Date(weekStart);
+                const end = new Date(start);
+                end.setDate(start.getDate() + 6);
+                
+                return `${start.getMonth() + 1}/${start.getDate()}-${end.getMonth() + 1}/${end.getDate()}`;
+            });
+            const data = sortedWeeks.map(week => weeklyData[week]);
+            
+            monthlySalesChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: '已售套数',
+                        data: data,
+                        backgroundColor: 'rgba(118, 75, 162, 0.8)',
+                        borderColor: '#764ba2',
+                        borderWidth: 2,
+                        borderRadius: 8,
+                        hoverBackgroundColor: 'rgba(118, 75, 162, 1)'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top'
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(0,0,0,0.8)',
+                            padding: 12,
+                            titleFont: { size: 14 },
+                            bodyFont: { size: 13 },
+                            callbacks: {
+                                label: function(context) {
+                                    return `已售: ${context.parsed.y} 套`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                font: { size: 12 },
+                                stepSize: 1,
+                                callback: function(value) {
+                                    if (Number.isInteger(value)) {
+                                        return value;
+                                    }
+                                }
+                            },
+                            grid: {
+                                color: 'rgba(0,0,0,0.05)'
+                            }
+                        },
+                        x: {
+                            ticks: {
+                                font: { size: 12 }
+                            },
+                            grid: {
+                                display: false
+                            }
+                        }
+                    }
+                }
+            });
+            
+            // 更新标题和显示返回按钮
+            document.getElementById('salesChartTitle').textContent = `📊 ${year}年${month}月 周度销售统计`;
+            document.getElementById('backBtn').style.display = 'inline-block';
+            currentView = 'weekly';
+        }
+        
+        // 返回月度统计
+        function backToMonthly() {
+            initMonthlySalesChart(allRecords);
+            document.getElementById('salesChartTitle').textContent = '📊 月度销售统计';
+            document.getElementById('backBtn').style.display = 'none';
+            currentView = 'monthly';
+        }
+        
+        // 更新数据表格
+        function updateTable(records) {
+            const tbody = document.getElementById('dataTableBody');
+            tbody.innerHTML = '';
+            
+            // 倒序显示（最新的在前面）
+            const reversedRecords = [...records].reverse();
+            
+            reversedRecords.forEach((record, index) => {
+                const row = document.createElement('tr');
+                const date = new Date(record.timestamp);
+                const formattedDate = date.toLocaleString('zh-CN', {
+                    year: 'numeric',
+                    month: '2-digit',
+                    day: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit'
+                });
+                
+                // 计算变化
+                let change = '-';
+                let changeStyle = '';
+                if (index < reversedRecords.length - 1) {
+                    const diff = record.available_units - reversedRecords[index + 1].available_units;
+                    if (diff > 0) {
+                        change = `+${diff}`;
+                        changeStyle = 'color: #dc3545; font-weight: bold;'; // 红色表示增加
+                    } else if (diff < 0) {
+                        change = `${diff}`;
+                        changeStyle = 'color: #28a745; font-weight: bold;'; // 绿色表示减少
+                    } else {
+                        change = '0';
+                        changeStyle = 'color: #6c757d;';
+                    }
+                }
+                
+                row.innerHTML = `
+                    <td>${records.length - index}</td>
+                    <td>${formattedDate}</td>
+                    <td><strong>${record.available_units}</strong> 套</td>
+                    <td style="${changeStyle}">${change}</td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+        
+        // 加载楼盘列表
+        async function loadPropertyList() {
+            try {
+                const response = await fetch(`${API_BASE}/properties`);
+                const result = await response.json();
+                
+                if (result.success && result.data.length > 0) {
+                    allProperties = result.data;
+                    
+                    // 设置默认显示
+                    if (currentProperty) {
+                        document.getElementById('propertySearchInput').value = currentProperty;
+                    }
+                    
+                    // 渲染下拉列表
+                    renderPropertyDropdown(allProperties);
+                }
+            } catch (error) {
+                console.error('加载楼盘列表失败:', error);
+            }
+        }
+        
+        // 渲染楼盘下拉列表
+        function renderPropertyDropdown(properties) {
+            const dropdown = document.getElementById('propertyDropdown');
+            dropdown.innerHTML = '';
+            
+            if (properties.length === 0) {
+                const noResult = document.createElement('div');
+                noResult.className = 'property-option no-results';
+                noResult.textContent = '未找到匹配的楼盘';
+                dropdown.appendChild(noResult);
+                return;
+            }
+            
+            // 添加"全部楼盘"选项
+            const allOption = document.createElement('div');
+            allOption.className = 'property-option';
+            if (!currentProperty) {
+                allOption.classList.add('selected');
+            }
+            allOption.textContent = '全部楼盘';
+            allOption.onclick = () => selectProperty('');
+            dropdown.appendChild(allOption);
+            
+            // 添加楼盘选项
+            properties.forEach(name => {
+                const option = document.createElement('div');
+                option.className = 'property-option';
+                if (name === currentProperty) {
+                    option.classList.add('selected');
+                }
+                option.textContent = name;
+                option.onclick = () => selectProperty(name);
+                dropdown.appendChild(option);
+            });
+        }
+        
+        // 显示下拉列表
+        function showPropertyDropdown() {
+            const dropdown = document.getElementById('propertyDropdown');
+            dropdown.classList.add('show');
+            
+            // 点击外部关闭下拉列表
+            setTimeout(() => {
+                document.addEventListener('click', closeDropdownOnClickOutside);
+            }, 0);
+        }
+        
+        // 隐藏下拉列表
+        function hidePropertyDropdown() {
+            const dropdown = document.getElementById('propertyDropdown');
+            dropdown.classList.remove('show');
+            document.removeEventListener('click', closeDropdownOnClickOutside);
+        }
+        
+        // 点击外部关闭
+        function closeDropdownOnClickOutside(e) {
+            const wrapper = document.querySelector('.property-search-wrapper');
+            if (!wrapper.contains(e.target)) {
+                hidePropertyDropdown();
+            }
+        }
+        
+        // 过滤楼盘
+        function filterProperties() {
+            const input = document.getElementById('propertySearchInput');
+            const searchText = input.value.toLowerCase();
+            
+            if (searchText === '') {
+                renderPropertyDropdown(allProperties);
+            } else {
+                const filtered = allProperties.filter(name => 
+                    name.toLowerCase().includes(searchText)
+                );
+                renderPropertyDropdown(filtered);
+            }
+            
+            showPropertyDropdown();
+        }
+        
+        // 选择楼盘
+        async function selectProperty(propertyName) {
+            currentProperty = propertyName;
+            const input = document.getElementById('propertySearchInput');
+            input.value = propertyName || '全部楼盘';
+            
+            hidePropertyDropdown();
+            
+            if (!propertyName) {
+                // 显示全部数据
+                // 重置图表标题
+                document.getElementById('trendChartTitle').textContent = '待售房产趋势';
+                
+                await loadData();
+            } else {
+                // 显示单个楼盘数据
+                await loadPropertyData(propertyName);
+            }
+        }
+        
+        
+        // 加载单个楼盘数据
+        async function loadPropertyData(propertyName) {
+            try {
+                const response = await fetch(`${API_BASE}/property/${encodeURIComponent(propertyName)}`);
+                const result = await response.json();
+                
+                if (result.success && result.data.length > 0) {
+                    const records = result.data;
+                    allRecords = records; // 保存记录用于月度统计
+                    
+                    const labels = records.map(r => {
+                        const date = new Date(r.timestamp);
+                        return date.toLocaleDateString('zh-CN', { 
+                            month: '2-digit', 
+                            day: '2-digit',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                        });
+                    });
+                    const data = records.map(r => r.available_units);
+                    
+                    // 更新统计信息
+                    if (records.length > 0) {
+                        const latest = records[records.length - 1];
+                        document.getElementById('currentUnits').textContent = latest.available_units;
+                        document.getElementById('totalProjects').textContent = '1';
+                        document.getElementById('totalRecords').textContent = records.length;
+                        
+                        const lastUpdate = new Date(latest.timestamp);
+                        document.getElementById('lastUpdate').textContent = 
+                            lastUpdate.toLocaleString('zh-CN', { 
+                                month: '2-digit', 
+                                day: '2-digit',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                            });
+                    }
+                    
+                    // 更新图表标题
+                    document.getElementById('trendChartTitle').textContent = `${propertyName} - 待售房产趋势`;
+                    
+                    // 初始化趋势图表
+                    initChart(labels, data);
+                    
+                    // 初始化月度销售统计图表
+                    if (records.length > 1) {
+                        initMonthlySalesChart(records);
+                    } else {
+                        // 如果数据不足，清空月度图表
+                        if (monthlySalesChart) {
+                            monthlySalesChart.destroy();
+                            monthlySalesChart = null;
+                        }
+                    }
+                    
+                    // 更新数据表格
+                    updateTable(records);
+                    
+                    // 隐藏排名图表
+                    document.getElementById('rankingChartContainer').style.display = 'none';
+                    
+                } else {
+                    alert(`未找到 ${propertyName} 的历史数据`);
+                }
+            } catch (error) {
+                console.error('加载楼盘数据失败:', error);
+                alert('加载楼盘数据失败，请稍后重试');
+            }
+        }
+        
+        // 卖出速度排名相关变量
+        let speedRankingData = [];
+        let speedRankingOffset = 0;
+        const SPEED_ITEMS_PER_PAGE = 25;
+        
+        // 初始化日期选择器
+        function initDatePickers() {
+            const endDate = new Date();
+            const startDate = new Date();
+            
+            // 设置为当前月的第一天
+            startDate.setDate(1);
+            
+            document.getElementById('endDate').valueAsDate = endDate;
+            document.getElementById('startDate').valueAsDate = startDate;
+        }
+        
+        // 更新卖出速度排名
+        async function updateSpeedRanking() {
+            const startDateStr = document.getElementById('startDate').value;
+            const endDateStr = document.getElementById('endDate').value;
+            
+            if (!startDateStr || !endDateStr) {
+                alert('请选择日期范围');
+                return;
+            }
+            
+            try {
+                // 获取所有楼盘列表
+                const propsResponse = await fetch(`${API_BASE}/properties`);
+                const propsResult = await propsResponse.json();
+                
+                if (!propsResult.success || !propsResult.data.length) {
+                    alert('暂无楼盘数据');
+                    return;
+                }
+                
+                const properties = propsResult.data;
+                const speedData = [];
+                
+                // 计算每个楼盘的卖出速度
+                for (const propName of properties) {
+                    const historyResponse = await fetch(`${API_BASE}/property/${encodeURIComponent(propName)}`);
+                    const historyResult = await historyResponse.json();
+                    
+                    if (historyResult.success && historyResult.data.length >= 2) {
+                        const records = historyResult.data;
+                        
+                        // 过滤日期范围内的记录
+                        const filteredRecords = records.filter(r => {
+                            const recordDate = new Date(r.timestamp).toISOString().split('T')[0];
+                            return recordDate >= startDateStr && recordDate <= endDateStr;
+                        });
+                        
+                        if (filteredRecords.length >= 2) {
+                            const firstRecord = filteredRecords[0];
+                            const lastRecord = filteredRecords[filteredRecords.length - 1];
+                            
+                            // 计算卖出数量
+                            const sold = firstRecord.available_units - lastRecord.available_units;
+                            
+                            // 计算天数（向上取整，至少1天）
+                            const daysDiff = (new Date(lastRecord.timestamp) - new Date(firstRecord.timestamp)) / (1000 * 60 * 60 * 24);
+                            const days = Math.max(1, Math.ceil(daysDiff));
+                            
+                            if (sold > 0) {
+                                const speed = Math.round(sold / days); // 每天卖出套数（整数）
+                                speedData.push({
+                                    name: propName,
+                                    speed: speed,
+                                    sold: sold,
+                                    days: days
+                                });
+                            }
+                        }
+                    }
+                }
+                
+                // 按速度排序
+                speedRankingData = speedData.sort((a, b) => b.speed - a.speed);
+                speedRankingOffset = 0;
+                
+                if (speedRankingData.length === 0) {
+                    alert('所选日期范围内没有足够的数据');
+                    return;
+                }
+                
+                renderSpeedRankingChart();
+                
+            } catch (error) {
+                console.error('计算卖出速度失败:', error);
+                alert('计算失败，请稍后重试');
+            }
+        }
+        
+        // 渲染卖出速度排名图表
+        function renderSpeedRankingChart() {
+            const totalItems = speedRankingData.length;
+            const startIdx = speedRankingOffset;
+            const endIdx = Math.min(startIdx + SPEED_ITEMS_PER_PAGE, totalItems);
+            const displayData = speedRankingData.slice(startIdx, endIdx);
+            
+            const ctx = document.getElementById('speedRankingChart').getContext('2d');
+            
+            if (speedRankingChart) {
+                speedRankingChart.destroy();
+            }
+            
+            const labels = displayData.map(p => p.name);
+            const values = displayData.map(p => p.speed);
+            
+            speedRankingChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: '卖出速度 (套/天)',
+                        data: values,
+                        backgroundColor: 'rgba(236, 72, 153, 0.8)',
+                        borderColor: '#ec4899',
+                        borderWidth: 2,
+                        borderRadius: 8
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(0,0,0,0.8)',
+                            padding: 12,
+                            titleFont: { size: 14 },
+                            bodyFont: { size: 13 },
+                            callbacks: {
+                                title: function(context) {
+                                    return context[0].label;
+                                },
+                                label: function(context) {
+                                    const idx = context.dataIndex + speedRankingOffset;
+                                    const item = speedRankingData[idx];
+                                    return [
+                                        `速度: ${item.speed} 套/天`,
+                                        `已售: ${item.sold} 套`,
+                                        `天数: ${item.days} 天`
+                                    ];
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                font: { size: 12 },
+                                stepSize: 1,
+                                callback: function(value) {
+                                    if (Number.isInteger(value)) {
+                                        return value;
+                                    }
+                                }
+                            },
+                            grid: {
+                                color: 'rgba(0,0,0,0.05)'
+                            }
+                        },
+                        x: {
+                            ticks: {
+                                font: { size: 11 },
+                                maxRotation: 45,
+                                minRotation: 45,
+                                autoSkip: false
+                            },
+                            grid: {
+                                display: false
+                            }
+                        }
+                    }
+                }
+            });
+            
+            // 更新导航
+            updateSpeedRankingNavigation();
+        }
+        
+        // 更新导航按钮
+        function updateSpeedRankingNavigation() {
+            const totalItems = speedRankingData.length;
+            const startIdx = speedRankingOffset;
+            const endIdx = Math.min(startIdx + SPEED_ITEMS_PER_PAGE, totalItems);
+            const hasPrev = speedRankingOffset > 0;
+            const hasNext = endIdx < totalItems;
+            
+            let navHtml = '<div style="display: flex; justify-content: center; align-items: center; gap: 10px; margin-top: 20px;">';
+            
+            if (hasPrev) {
+                navHtml += '<button onclick="prevSpeedRankingPage()" style="padding: 8px 20px;">← 上一页</button>';
+            }
+            
+            const currentPage = Math.floor(speedRankingOffset / SPEED_ITEMS_PER_PAGE) + 1;
+            const totalPages = Math.ceil(totalItems / SPEED_ITEMS_PER_PAGE);
+            navHtml += `<span style="padding: 8px 20px; color: #64748b;">显示 ${startIdx + 1}-${endIdx} / 共${totalItems}个 (第 ${currentPage}/${totalPages} 页)</span>`;
+            
+            if (hasNext) {
+                navHtml += '<button onclick="nextSpeedRankingPage()" style="padding: 8px 20px;">下一页 →</button>';
+            }
+            
+            navHtml += '</div>';
+            
+            document.getElementById('speedRankingNavigation').innerHTML = navHtml;
+        }
+        
+        // 旧的排名函数（保持兼容）
+        async function showRanking(type) {
+            try {
+                const response = await fetch(`${API_BASE}/properties/latest`);
+                const result = await response.json();
+                
+                if (!result.success || !result.data.length) {
+                    alert('暂无数据');
+                    return;
+                }
+                
+                let properties = result.data;
+                let title = '';
+                let sortedData = [];
+                
+                // 根据类型排序和计算
+                if (type === 'available') {
+                    title = '待售套数排名';
+                    sortedData = properties
+                        .sort((a, b) => b.available_units - a.available_units);
+                } else if (type === 'sold') {
+                    // 需要计算已售数量（需要历史数据）
+                    title = '已售套数排名';
+                    // 简化处理：假设初始都是相同的，按待售少的排
+                    sortedData = properties
+                        .filter(p => p.available_units < 500)
+                        .sort((a, b) => a.available_units - b.available_units);
+                } else if (type === 'ratio') {
+                    title = '卖出比例排名';
+                    // 简化：按待售数量倒序
+                    sortedData = properties
+                        .sort((a, b) => a.available_units - b.available_units);
+                } else if (type === 'speed') {
+                    title = '售出速率排名';
+                    // 简化：随机排序作为示例
+                    sortedData = properties
+                        .sort((a, b) => b.available_units - a.available_units);
+                }
+                
+                // 显示排名图表
+                showRankingChart(title, sortedData, type);
+                
+                // 更新按钮状态
+                document.querySelectorAll('.ranking-btn').forEach(btn => {
+                    btn.classList.remove('active');
+                });
+                event.target.classList.add('active');
+                
+            } catch (error) {
+                console.error('加载排名数据失败:', error);
+            }
+        }
+        
+        // 全局变量存储完整排名数据
+        let fullRankingData = [];
+        let currentRankingType = '';
+        let currentRankingOffset = 0;
+        const ITEMS_PER_PAGE = 20;
+        
+        // 显示排名图表
+        function showRankingChart(title, data, type) {
+            fullRankingData = data;
+            currentRankingType = type;
+            currentRankingOffset = 0;
+            
+            const container = document.getElementById('rankingChartContainer');
+            container.style.display = 'block';
+            
+            // 添加滚动控制
+            updateRankingChart(title);
+        }
+        
+        // 更新排名图表显示
+        function updateRankingChart(title) {
+            const totalItems = fullRankingData.length;
+            const startIdx = currentRankingOffset;
+            const endIdx = Math.min(startIdx + ITEMS_PER_PAGE, totalItems);
+            const displayData = fullRankingData.slice(startIdx, endIdx);
+            
+            document.getElementById('rankingChartTitle').textContent = 
+                `${title} (显示 ${startIdx + 1}-${endIdx} / 共${totalItems}个项目)`;
+            
+            const ctx = document.getElementById('rankingChart').getContext('2d');
+            
+            if (rankingChart) {
+                rankingChart.destroy();
+            }
+            
+            const labels = displayData.map(p => p.name);
+            const values = displayData.map(p => p.available_units);
+            
+            rankingChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: currentRankingType === 'available' ? '待售套数' : '数值',
+                        data: values,
+                        backgroundColor: 'rgba(99, 102, 241, 0.8)',
+                        borderColor: '#6366f1',
+                        borderWidth: 2,
+                        borderRadius: 8
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(0,0,0,0.8)',
+                            padding: 12,
+                            titleFont: { size: 14 },
+                            bodyFont: { size: 13 },
+                            callbacks: {
+                                title: function(context) {
+                                    return context[0].label;
+                                },
+                                label: function(context) {
+                                    return `待售: ${context.parsed.y} 套`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                font: { size: 12 },
+                                stepSize: 1,
+                                callback: function(value) {
+                                    if (Number.isInteger(value)) {
+                                        return value;
+                                    }
+                                }
+                            },
+                            grid: {
+                                color: 'rgba(0,0,0,0.05)'
+                            }
+                        },
+                        x: {
+                            ticks: {
+                                font: { size: 11 },
+                                maxRotation: 45,
+                                minRotation: 45,
+                                autoSkip: false
+                            },
+                            grid: {
+                                display: false
+                            }
+                        }
+                    }
+                }
+            });
+            
+            // 更新导航按钮状态
+            updateRankingNavigation();
+        }
+        
+        // 更新导航按钮
+        function updateRankingNavigation() {
+            const totalItems = fullRankingData.length;
+            const hasPrev = currentRankingOffset > 0;
+            const hasNext = currentRankingOffset + ITEMS_PER_PAGE < totalItems;
+            
+            let navHtml = '<div style="display: flex; justify-content: center; gap: 10px; margin-top: 20px;">';
+            
+            if (hasPrev) {
+                navHtml += '<button onclick="prevRankingPage()" style="padding: 8px 20px;">← 上一页</button>';
+            }
+            
+            const currentPage = Math.floor(currentRankingOffset / ITEMS_PER_PAGE) + 1;
+            const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
+            navHtml += `<span style="padding: 8px 20px; color: #64748b;">第 ${currentPage} / ${totalPages} 页</span>`;
+            
+            if (hasNext) {
+                navHtml += '<button onclick="nextRankingPage()" style="padding: 8px 20px;">下一页 →</button>';
+            }
+            
+            navHtml += '</div>';
+            
+            // 查找或创建导航容器
+            let navContainer = document.getElementById('rankingNavigation');
+            if (!navContainer) {
+                navContainer = document.createElement('div');
+                navContainer.id = 'rankingNavigation';
+                document.getElementById('rankingChartContainer').appendChild(navContainer);
+            }
+            navContainer.innerHTML = navHtml;
+        }
+        
+        // 上一页
+        function prevRankingPage() {
+            if (currentRankingOffset > 0) {
+                currentRankingOffset = Math.max(0, currentRankingOffset - ITEMS_PER_PAGE);
+                updateRankingChart(document.getElementById('rankingChartTitle').textContent.split('(')[0].trim());
+            }
+        }
+        
+        // 下一页
+        function nextSpeedRankingPage() {
+            if (speedRankingOffset + SPEED_ITEMS_PER_PAGE < speedRankingData.length) {
+                speedRankingOffset += SPEED_ITEMS_PER_PAGE;
+                renderSpeedRankingChart();
+            }
+        }
+        
+        // 上一页
+        function prevSpeedRankingPage() {
+            if (speedRankingOffset > 0) {
+                speedRankingOffset = Math.max(0, speedRankingOffset - SPEED_ITEMS_PER_PAGE);
+                renderSpeedRankingChart();
+            }
+        }
+        
+        // 加载数据
+        async function loadData() {
+            try {
+                const response = await fetch(`${API_BASE}/records`);
+                const result = await response.json();
+                
+                if (result.success && result.data.length > 0) {
+                    const records = result.data;
+                    allRecords = records; // 保存所有记录
+                    const labels = records.map(r => {
+                        const date = new Date(r.timestamp);
+                        return date.toLocaleDateString('zh-CN', { 
+                            month: '2-digit', 
+                            day: '2-digit',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                        });
+                    });
+                    const data = records.map(r => r.available_units);
+                    
+                    // 更新统计信息
+                    const latest = records[records.length - 1];
+                    document.getElementById('currentUnits').textContent = latest.available_units;
+                    document.getElementById('totalProjects').textContent = latest.total_projects || '-';
+                    document.getElementById('totalRecords').textContent = records.length;
+                    
+                    const lastUpdate = new Date(latest.timestamp);
+                    document.getElementById('lastUpdate').textContent = 
+                        lastUpdate.toLocaleString('zh-CN', { 
+                            month: '2-digit', 
+                            day: '2-digit',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                        });
+                    
+                    // 初始化图表
+                    initChart(labels, data);
+                    
+                    // 初始化月度销售统计图表
+                    initMonthlySalesChart(records);
+                    
+                    // 更新数据表格
+                    updateTable(records);
+                } else {
+                    alert('暂无数据，请先刷新获取数据');
+                }
+            } catch (error) {
+                console.error('加载数据失败:', error);
+                alert('加载数据失败，请检查后端服务是否启动');
+            }
+        }
+        
+        // 刷新数据
+        async function refreshData() {
+            const btn = document.getElementById('refreshBtn');
+            btn.disabled = true;
+            btn.textContent = '⏳ 刷新中...';
+            
+            try {
+                const response = await fetch(`${API_BASE}/refresh`, {
+                    method: 'POST'
+                });
+                const result = await response.json();
+                
+                if (result.success) {
+                    const projects = result.data.total_projects || 0;
+                    const units = result.data.available_units;
+                    alert(`数据刷新成功！\n在售项目: ${projects} 个\n待售套数: ${units} 套`);
+                    await loadData();
+                } else {
+                    alert('数据刷新失败: ' + (result.error || '未知错误'));
+                }
+            } catch (error) {
+                console.error('刷新失败:', error);
+                alert('刷新失败，请检查后端服务是否启动');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '🔄 刷新数据';
+            }
+        }
+        
+        // 页面加载时自动加载数据
+        window.onload = async function() {
+            // 初始化日期选择器
+            initDatePickers();
+            
+            // 先加载楼盘列表
+            await loadPropertyList();
+            
+            // 检查云玺花园是否存在
+            if (allProperties.includes('云玺花园')) {
+                // 默认显示云玺花园
+                currentProperty = '云玺花园';
+                document.getElementById('propertySearchInput').value = '云玺花园';
+                await loadPropertyData('云玺花园');
+            } else {
+                // 如果没有云玺花园，显示全部数据
+                currentProperty = '';
+                document.getElementById('propertySearchInput').value = '全部楼盘';
+                await loadData();
+            }
+            
+            // 加载卖出速度排名（异步，不阻塞页面加载）
+            setTimeout(() => {
+                updateSpeedRanking();
+            }, 1000);
+        };
+    </script>
+</body>
+</html>
