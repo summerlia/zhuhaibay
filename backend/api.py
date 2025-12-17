@@ -4,6 +4,7 @@ import os
 import threading
 import urllib.parse
 from datetime import datetime
+from typing import Dict
 from backend.database import Database
 from backend.scraper import PropertyScraper
 
