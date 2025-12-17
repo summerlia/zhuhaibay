@@ -167,21 +167,44 @@ def _refresh_task():
         class StatusScraper(PropertyScraper):
             def fetch_page(self, start: int):
                 _update_step(f"正在请求数据 (第 {start} 页)...")
-                result = super().fetch_page(start)
-                if result:
-                    _add_log(f"数据请求成功 (第 {start} 页)")
-                else:
-                    _add_log(f"数据请求失败 (第 {start} 页)")
-                return result
+                _add_log(f"开始请求第 {start} 页数据...")
+                try:
+                    result = super().fetch_page(start)
+                    if result:
+                        _add_log(f"数据请求成功 (第 {start} 页)")
+                    else:
+                        _add_log(f"数据请求失败 (第 {start} 页): 返回 None")
+                    return result
+                except Exception as e:
+                    _add_log(f"数据请求异常 (第 {start} 页): {str(e)}")
+                    raise
             
             def parse_properties(self, data: Dict):
                 _update_step("正在解析数据...")
-                result = super().parse_properties(data)
-                if result:
-                    _add_log(f"数据解析成功: 找到 {len(result)} 个楼盘")
-                else:
-                    _add_log("数据解析失败: 未找到楼盘数据")
-                return result
+                _add_log("开始解析楼盘数据...")
+                try:
+                    result = super().parse_properties(data)
+                    if result:
+                        _add_log(f"数据解析成功: 找到 {len(result)} 个楼盘")
+                    else:
+                        _add_log("数据解析失败: 未找到楼盘数据")
+                    return result
+                except Exception as e:
+                    _add_log(f"数据解析异常: {str(e)}")
+                    raise
+            
+            def fetch_all_properties(self):
+                _add_log("开始执行 fetch_all_properties...")
+                try:
+                    result = super().fetch_all_properties()
+                    if result:
+                        _add_log(f"fetch_all_properties 成功: {result.get('total_projects', 0)} 个项目")
+                    else:
+                        _add_log("fetch_all_properties 失败: 返回 None")
+                    return result
+                except Exception as e:
+                    _add_log(f"fetch_all_properties 异常: {str(e)}")
+                    raise
         
         status_scraper = StatusScraper()
         result = status_scraper.fetch_all_properties()
