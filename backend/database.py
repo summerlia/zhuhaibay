@@ -5,7 +5,20 @@ from datetime import datetime
 from typing import List, Dict, Optional
 
 class Database:
-    def __init__(self, db_path: str = 'data/properties.db'):
+    def __init__(self, db_path: str = None):
+        # 优先使用环境变量，如果没有则自动检测持久化磁盘路径
+        if db_path is None:
+            db_path = os.environ.get('DB_PATH')
+            
+        if db_path is None:
+            # 检查 Render 持久化磁盘路径
+            render_disk_path = '/opt/render/project/src/data/properties.db'
+            if os.path.exists('/opt/render/project/src/data'):
+                db_path = render_disk_path
+            else:
+                # 本地开发路径
+                db_path = 'data/properties.db'
+        
         self.db_path = db_path
         # 确保目录存在
         db_dir = os.path.dirname(db_path)
