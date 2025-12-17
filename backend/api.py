@@ -15,8 +15,13 @@ scraper = PropertyScraper()
 
 # 用于跟踪刷新任务状态
 refresh_lock = threading.Lock()
-is_refreshing = False
-last_refresh_time = None
+refresh_status = {
+    'is_running': False,
+    'start_time': None,
+    'end_time': None,
+    'error': None,
+    'result': None  # {'projects': int, 'units': int}
+}
 
 @app.route('/')
 def index():
@@ -122,43 +127,69 @@ def get_latest_properties():
 
 def _refresh_task():
     """后台执行数据刷新任务"""
-    global is_refreshing, last_refresh_time
+    global refresh_status
     try:
-        print(f"[{datetime.now().isoformat()}] 开始后台刷新数据...")
+        start_time = datetime.now().isoformat()
+        with refresh_lock:
+            refresh_status['is_running'] = True
+            refresh_status['start_time'] = start_time
+            refresh_status['end_time'] = None
+            refresh_status['error'] = None
+            refresh_status['result'] = None
+        
+        print(f"[{start_time}] 开始后台刷新数据...")
         result = scraper.fetch_all_properties()
+        
+        end_time = datetime.now().isoformat()
+        
         if result:
             units = result['total_available_units']
             projects = result['total_projects']
             db.save_record(units, projects, result)
-            last_refresh_time = datetime.now().isoformat()
-            print(f"[{datetime.now().isoformat()}] 数据刷新完成: {projects} 个项目，共 {units} 套")
+            
+            with refresh_lock:
+                refresh_status['is_running'] = False
+                refresh_status['end_time'] = end_time
+                refresh_status['result'] = {
+                    'projects': projects,
+                    'units': units
+                }
+            
+            print(f"[{end_time}] 数据刷新完成: {projects} 个项目，共 {units} 套")
         else:
-            print(f"[{datetime.now().isoformat()}] 数据抓取失败")
+            with refresh_lock:
+                refresh_status['is_running'] = False
+                refresh_status['end_time'] = end_time
+                refresh_status['error'] = '数据抓取失败，未返回有效数据'
+            print(f"[{end_time}] 数据抓取失败")
     except Exception as e:
         import traceback
         error_msg = str(e)
-        print(f"[{datetime.now().isoformat()}] 刷新数据时发生错误: {error_msg}")
-        print(traceback.format_exc())
-    finally:
+        end_time = datetime.now().isoformat()
+        
         with refresh_lock:
-            is_refreshing = False
+            refresh_status['is_running'] = False
+            refresh_status['end_time'] = end_time
+            refresh_status['error'] = error_msg
+        
+        print(f"[{end_time}] 刷新数据时发生错误: {error_msg}")
+        print(traceback.format_exc())
 
 @app.route('/api/refresh', methods=['POST'])
 def refresh_data():
     """手动刷新数据（异步执行）"""
-    global is_refreshing
+    global refresh_status
     
     # 检查是否正在刷新
     with refresh_lock:
-        if is_refreshing:
+        if refresh_status['is_running']:
             return jsonify({
                 'success': False,
                 'error': '数据刷新任务正在进行中，请稍后再试',
-                'is_running': True
+                'status': refresh_status.copy()
             }), 429
         
         # 启动后台任务
-        is_refreshing = True
         thread = threading.Thread(target=_refresh_task, daemon=True)
         thread.start()
     
@@ -166,8 +197,18 @@ def refresh_data():
     return jsonify({
         'success': True,
         'message': '数据刷新任务已启动，正在后台处理中',
-        'is_running': True
+        'status': refresh_status.copy()
     })
+
+@app.route('/api/refresh/status', methods=['GET'])
+def refresh_status_endpoint():
+    """获取刷新任务状态"""
+    global refresh_status
+    with refresh_lock:
+        return jsonify({
+            'success': True,
+            'status': refresh_status.copy()
+        })
 
 if __name__ == '__main__':
     import os

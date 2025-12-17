@@ -1843,6 +1843,64 @@
             }
         }
         
+        // 检查刷新任务状态
+        async function checkRefreshStatus() {
+            try {
+                const response = await fetch(`${API_BASE}/refresh/status`);
+                const result = await response.json();
+                if (result.success) {
+                    return result.status;
+                }
+                return null;
+            } catch (error) {
+                console.error('检查刷新状态失败:', error);
+                return null;
+            }
+        }
+        
+        // 轮询刷新任务状态
+        async function pollRefreshStatus(btn, startTime) {
+            const status = await checkRefreshStatus();
+            
+            if (!status) {
+                // 如果无法获取状态，继续轮询
+                setTimeout(() => pollRefreshStatus(btn, startTime), 3000);
+                return;
+            }
+            
+            if (status.is_running) {
+                // 任务仍在运行，显示运行时间
+                const elapsed = Math.floor((Date.now() - new Date(status.start_time).getTime()) / 1000);
+                btn.textContent = `⏳ 刷新中... (${elapsed}秒)`;
+                setTimeout(() => pollRefreshStatus(btn, startTime), 3000);
+            } else {
+                // 任务已完成
+                btn.disabled = false;
+                
+                if (status.error) {
+                    // 有错误
+                    btn.textContent = '❌ 刷新失败';
+                    alert(`数据刷新失败：\n${status.error}`);
+                    setTimeout(() => {
+                        btn.textContent = '🔄 刷新数据';
+                    }, 3000);
+                } else if (status.result) {
+                    // 成功
+                    btn.textContent = '✅ 刷新完成';
+                    const projects = status.result.projects || 0;
+                    const units = status.result.units || 0;
+                    alert(`数据刷新成功！\n在售项目: ${projects} 个\n待售套数: ${units} 套`);
+                    await loadData();
+                    setTimeout(() => {
+                        btn.textContent = '🔄 刷新数据';
+                    }, 2000);
+                } else {
+                    // 未知状态
+                    btn.textContent = '🔄 刷新数据';
+                }
+            }
+        }
+        
         // 刷新数据（异步任务）
         async function refreshData() {
             const btn = document.getElementById('refreshBtn');
@@ -1889,20 +1947,11 @@
                 
                 if (result.success) {
                     // 任务已启动，开始轮询检查结果
+                    const startTime = Date.now();
                     btn.textContent = '⏳ 刷新中...';
-                    alert('数据刷新任务已启动，正在后台处理中。\n请等待30-60秒后点击"重新加载"查看最新数据。');
                     
-                    // 等待一段时间后自动检查
-                    setTimeout(async () => {
-                        btn.textContent = '🔄 检查结果...';
-                        await loadData();
-                        btn.textContent = '🔄 刷新数据';
-                        btn.disabled = false;
-                    }, 45000); // 45秒后自动检查
-                    
-                    // 也允许用户手动检查
-                    btn.disabled = false;
-                    btn.textContent = '🔄 检查结果';
+                    // 开始轮询状态
+                    setTimeout(() => pollRefreshStatus(btn, startTime), 2000); // 2秒后开始检查
                 } else {
                     alert('刷新失败: ' + (result.error || '未知错误'));
                     btn.disabled = false;
