@@ -1343,43 +1343,76 @@
                 
                 const properties = propsResult.data;
                 const speedData = [];
+                const total = properties.length;
+                let processed = 0;
                 
-                // 计算每个楼盘的卖出速度
-                for (const propName of properties) {
-                    const historyResponse = await fetch(`${API_BASE}/property/${encodeURIComponent(propName)}`);
-                    const historyResult = await historyResponse.json();
+                // 更新按钮状态
+                const updateBtn = document.querySelector('button[onclick="updateSpeedRanking()"]');
+                const originalText = updateBtn ? updateBtn.textContent : '';
+                if (updateBtn) {
+                    updateBtn.disabled = true;
+                    updateBtn.textContent = `计算中... (0/${total})`;
+                }
+                
+                // 计算每个楼盘的卖出速度（添加延迟避免请求过载）
+                for (let i = 0; i < properties.length; i++) {
+                    const propName = properties[i];
                     
-                    if (historyResult.success && historyResult.data.length >= 2) {
-                        const records = historyResult.data;
+                    try {
+                        const historyResponse = await fetch(`${API_BASE}/property/${encodeURIComponent(propName)}`);
+                        const historyResult = await historyResponse.json();
                         
-                        // 过滤日期范围内的记录
-                        const filteredRecords = records.filter(r => {
-                            const recordDate = new Date(r.timestamp).toISOString().split('T')[0];
-                            return recordDate >= startDateStr && recordDate <= endDateStr;
-                        });
-                        
-                        if (filteredRecords.length >= 2) {
-                            const firstRecord = filteredRecords[0];
-                            const lastRecord = filteredRecords[filteredRecords.length - 1];
+                        if (historyResult.success && historyResult.data.length >= 2) {
+                            const records = historyResult.data;
                             
-                            // 计算卖出数量
-                            const sold = firstRecord.available_units - lastRecord.available_units;
+                            // 过滤日期范围内的记录
+                            const filteredRecords = records.filter(r => {
+                                const recordDate = new Date(r.timestamp).toISOString().split('T')[0];
+                                return recordDate >= startDateStr && recordDate <= endDateStr;
+                            });
                             
-                            // 计算天数（向上取整，至少1天）
-                            const daysDiff = (new Date(lastRecord.timestamp) - new Date(firstRecord.timestamp)) / (1000 * 60 * 60 * 24);
-                            const days = Math.max(1, Math.ceil(daysDiff));
-                            
-                            if (sold > 0) {
-                                const speed = Math.round(sold / days); // 每天卖出套数（整数）
-                                speedData.push({
-                                    name: propName,
-                                    speed: speed,
-                                    sold: sold,
-                                    days: days
-                                });
+                            if (filteredRecords.length >= 2) {
+                                const firstRecord = filteredRecords[0];
+                                const lastRecord = filteredRecords[filteredRecords.length - 1];
+                                
+                                // 计算卖出数量
+                                const sold = firstRecord.available_units - lastRecord.available_units;
+                                
+                                // 计算天数（向上取整，至少1天）
+                                const daysDiff = (new Date(lastRecord.timestamp) - new Date(firstRecord.timestamp)) / (1000 * 60 * 60 * 24);
+                                const days = Math.max(1, Math.ceil(daysDiff));
+                                
+                                if (sold > 0) {
+                                    const speed = Math.round(sold / days); // 每天卖出套数（整数）
+                                    speedData.push({
+                                        name: propName,
+                                        speed: speed,
+                                        sold: sold,
+                                        days: days
+                                    });
+                                }
                             }
                         }
+                    } catch (error) {
+                        console.error(`获取 ${propName} 数据失败:`, error);
+                        // 继续处理下一个，不中断整个流程
                     }
+                    
+                    processed++;
+                    if (updateBtn) {
+                        updateBtn.textContent = `计算中... (${processed}/${total})`;
+                    }
+                    
+                    // 每10个请求后添加延迟，避免服务器过载
+                    if (i < properties.length - 1 && (i + 1) % 10 === 0) {
+                        await new Promise(resolve => setTimeout(resolve, 100)); // 100ms 延迟
+                    }
+                }
+                
+                // 恢复按钮状态
+                if (updateBtn) {
+                    updateBtn.disabled = false;
+                    updateBtn.textContent = originalText;
                 }
                 
                 // 按速度排序
