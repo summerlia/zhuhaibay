@@ -1264,8 +1264,11 @@
                     // 更新数据表格
                     updateTable(records);
                     
-                    // 隐藏排名图表
-                    document.getElementById('rankingChartContainer').style.display = 'none';
+                    // 隐藏排名图表（如果存在）
+                    const rankingContainer = document.getElementById('rankingChartContainer') || document.getElementById('speedRankingContainer');
+                    if (rankingContainer) {
+                        rankingContainer.style.display = 'none';
+                    }
                     
                 } else {
                     alert(`未找到 ${propertyName} 的历史数据`);
@@ -1555,8 +1558,10 @@
             currentRankingType = type;
             currentRankingOffset = 0;
             
-            const container = document.getElementById('rankingChartContainer');
-            container.style.display = 'block';
+            const container = document.getElementById('rankingChartContainer') || document.getElementById('speedRankingContainer');
+            if (container) {
+                container.style.display = 'block';
+            }
             
             // 添加滚动控制
             updateRankingChart(title);
@@ -1676,11 +1681,16 @@
             // 查找或创建导航容器
             let navContainer = document.getElementById('rankingNavigation');
             if (!navContainer) {
-                navContainer = document.createElement('div');
-                navContainer.id = 'rankingNavigation';
-                document.getElementById('rankingChartContainer').appendChild(navContainer);
+                const container = document.getElementById('rankingChartContainer') || document.getElementById('speedRankingContainer');
+                if (container) {
+                    navContainer = document.createElement('div');
+                    navContainer.id = 'rankingNavigation';
+                    container.appendChild(navContainer);
+                }
             }
-            navContainer.innerHTML = navHtml;
+            if (navContainer) {
+                navContainer.innerHTML = navHtml;
+            }
         }
         
         // 上一页
