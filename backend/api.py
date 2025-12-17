@@ -1,13 +1,19 @@
-from flask import Flask, jsonify
+from flask import Flask, jsonify, send_from_directory
 from flask_cors import CORS
+import os
 from backend.database import Database
 from backend.scraper import PropertyScraper
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder='../frontend', static_url_path='')
 CORS(app)
 
 db = Database()
 scraper = PropertyScraper()
+
+@app.route('/')
+def index():
+    """返回前端页面"""
+    return send_from_directory(os.path.join(os.path.dirname(os.path.dirname(__file__)), 'frontend'), 'index.html')
 
 @app.route('/api/records', methods=['GET'])
 def get_records():
