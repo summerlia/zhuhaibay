@@ -1,7 +1,7 @@
 from flask import Flask, jsonify
 from flask_cors import CORS
-from database import Database
-from scraper import PropertyScraper
+from backend.database import Database
+from backend.scraper import PropertyScraper
 
 app = Flask(__name__)
 CORS(app)
