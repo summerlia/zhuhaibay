@@ -721,6 +721,29 @@
         let allProperties = []; // 所有楼盘列表
         let currentProperty = '云玺花园'; // 当前选中的楼盘
         
+        // 计算合适的 Y 轴步长
+        function calculateStepSize(data) {
+            if (!data || data.length === 0) return 1;
+            const min = Math.min(...data);
+            const max = Math.max(...data);
+            const range = max - min;
+            
+            if (range === 0) return 1;
+            
+            // 目标：生成大约 10-20 个刻度
+            const targetTicks = 15;
+            let step = Math.ceil(range / targetTicks);
+            
+            // 将步长调整为更友好的数字（1, 2, 5, 10, 20, 50, 100, 200, 500, 1000...）
+            const niceSteps = [1, 2, 5, 10, 20, 50, 100, 200, 500, 1000, 2000, 5000, 10000];
+            for (let i = 0; i < niceSteps.length; i++) {
+                if (step <= niceSteps[i]) {
+                    return niceSteps[i];
+                }
+            }
+            return step;
+        }
+        
         // 初始化图表
         function initChart(labels, data) {
             const ctx = document.getElementById('trendChart').getContext('2d');
@@ -770,7 +793,7 @@
                             beginAtZero: false,
                             ticks: {
                                 font: { size: 12 },
-                                stepSize: 1,
+                                stepSize: calculateStepSize(data),
                                 callback: function(value) {
                                     if (Number.isInteger(value)) {
                                         return value;
@@ -832,6 +855,7 @@
                 return `${year}年${m}月`;
             });
             const data = sortedMonths.map(month => monthlyData[month]);
+            const stepSize = calculateStepSize(data);
             
             monthlySalesChart = new Chart(ctx, {
                 type: 'bar',
@@ -960,6 +984,7 @@
                 return `${start.getMonth() + 1}/${start.getDate()}-${end.getMonth() + 1}/${end.getDate()}`;
             });
             const data = sortedWeeks.map(week => weeklyData[week]);
+            const stepSize = calculateStepSize(data);
             
             monthlySalesChart = new Chart(ctx, {
                 type: 'bar',
@@ -1000,7 +1025,7 @@
                             beginAtZero: true,
                             ticks: {
                                 font: { size: 12 },
-                                stepSize: 1,
+                                stepSize: stepSize,
                                 callback: function(value) {
                                     if (Number.isInteger(value)) {
                                         return value;
@@ -1389,6 +1414,7 @@
             
             const labels = displayData.map(p => p.name);
             const values = displayData.map(p => p.speed);
+            const stepSize = calculateStepSize(values);
             
             speedRankingChart = new Chart(ctx, {
                 type: 'bar',
@@ -1436,7 +1462,7 @@
                             beginAtZero: true,
                             ticks: {
                                 font: { size: 12 },
-                                stepSize: 1,
+                                stepSize: stepSize,
                                 callback: function(value) {
                                     if (Number.isInteger(value)) {
                                         return value;
@@ -1585,6 +1611,7 @@
             
             const labels = displayData.map(p => p.name);
             const values = displayData.map(p => p.available_units);
+            const stepSize = calculateStepSize(values);
             
             rankingChart = new Chart(ctx, {
                 type: 'bar',
@@ -1626,7 +1653,7 @@
                             beginAtZero: true,
                             ticks: {
                                 font: { size: 12 },
-                                stepSize: 1,
+                                stepSize: stepSize,
                                 callback: function(value) {
                                     if (Number.isInteger(value)) {
                                         return value;
