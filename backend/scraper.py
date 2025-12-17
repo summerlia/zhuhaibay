@@ -27,13 +27,16 @@ class PropertyScraper:
                 'count': self.page_size
             }
             
+            print(f"正在请求: {self.base_url} (start={start}, count={self.page_size})")
             response = requests.get(
                 self.base_url, 
                 params=params,
                 headers=self.headers, 
                 timeout=120
             )
+            print(f"响应状态码: {response.status_code}")
             response.raise_for_status()
+            print(f"响应内容长度: {len(response.text)} 字符")
             
             # 尝试解析JSON响应
             try:

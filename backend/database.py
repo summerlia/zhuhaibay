@@ -66,11 +66,13 @@ class Database:
     def save_record(self, available_units: int, total_projects: int = 0, details: Optional[Dict] = None) -> bool:
         """保存一条记录"""
         try:
+            print(f"开始保存记录: {available_units} 套, {total_projects} 个项目")
             conn = sqlite3.connect(self.db_path)
             cursor = conn.cursor()
             timestamp = datetime.now().isoformat()
             details_json = json.dumps(details, ensure_ascii=False) if details else None
             
+            print(f"插入主记录: timestamp={timestamp}, units={available_units}, projects={total_projects}")
             cursor.execute(
                 'INSERT INTO property_records (timestamp, available_units, total_projects, details) VALUES (?, ?, ?, ?)',
                 (timestamp, available_units, total_projects, details_json)
@@ -78,17 +80,32 @@ class Database:
             
             # 保存每个楼盘的详细数据
             if details and 'properties' in details:
+                properties_count = len(details['properties'])
+                print(f"开始保存 {properties_count} 个楼盘的详细数据...")
+                saved_count = 0
                 for prop in details['properties']:
-                    cursor.execute(
-                        'INSERT INTO property_details (timestamp, property_name, available_units) VALUES (?, ?, ?)',
-                        (timestamp, prop['name'], prop['available_units'])
-                    )
+                    try:
+                        cursor.execute(
+                            'INSERT INTO property_details (timestamp, property_name, available_units) VALUES (?, ?, ?)',
+                            (timestamp, prop['name'], prop['available_units'])
+                        )
+                        saved_count += 1
+                    except Exception as e:
+                        print(f"保存楼盘 {prop.get('name', '未知')} 失败: {e}")
+                        continue
+                print(f"楼盘详细数据保存完成: {saved_count}/{properties_count}")
+            else:
+                print("警告: details 中没有 properties 数据")
             
             conn.commit()
+            print("数据库提交成功")
             conn.close()
+            print("保存记录成功")
             return True
         except Exception as e:
+            import traceback
             print(f"保存记录失败: {e}")
+            print(traceback.format_exc())
             return False
     
     def get_all_records(self) -> List[Dict]:

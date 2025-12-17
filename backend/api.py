@@ -163,7 +163,28 @@ def _refresh_task():
         _add_log("开始后台刷新数据...")
         _update_step("正在抓取数据...")
         
-        result = scraper.fetch_all_properties()
+        # 创建一个带回调的 scraper 来更新状态
+        class StatusScraper(PropertyScraper):
+            def fetch_page(self, start: int):
+                _update_step(f"正在请求数据 (第 {start} 页)...")
+                result = super().fetch_page(start)
+                if result:
+                    _add_log(f"数据请求成功 (第 {start} 页)")
+                else:
+                    _add_log(f"数据请求失败 (第 {start} 页)")
+                return result
+            
+            def parse_properties(self, data: Dict):
+                _update_step("正在解析数据...")
+                result = super().parse_properties(data)
+                if result:
+                    _add_log(f"数据解析成功: 找到 {len(result)} 个楼盘")
+                else:
+                    _add_log("数据解析失败: 未找到楼盘数据")
+                return result
+        
+        status_scraper = StatusScraper()
+        result = status_scraper.fetch_all_properties()
         
         if not result:
             end_time = datetime.now().isoformat()
@@ -183,20 +204,32 @@ def _refresh_task():
         _update_step(f"正在保存数据 ({projects} 个项目，{units} 套)...")
         
         # 保存数据到数据库
+        _add_log("开始保存数据到数据库...")
         success = db.save_record(units, projects, result)
         
         end_time = datetime.now().isoformat()
         
         if success:
-            with refresh_lock:
-                refresh_status['is_running'] = False
-                refresh_status['end_time'] = end_time
-                refresh_status['result'] = {
-                    'projects': projects,
-                    'units': units
-                }
-                refresh_status['current_step'] = '任务完成'
-            _add_log(f"数据保存成功: {projects} 个项目，共 {units} 套")
+            # 验证数据是否真的保存成功
+            latest = db.get_latest_record()
+            if latest and latest.get('available_units') == units:
+                with refresh_lock:
+                    refresh_status['is_running'] = False
+                    refresh_status['end_time'] = end_time
+                    refresh_status['result'] = {
+                        'projects': projects,
+                        'units': units
+                    }
+                    refresh_status['current_step'] = '任务完成'
+                _add_log(f"数据保存成功并验证: {projects} 个项目，共 {units} 套")
+            else:
+                error_msg = f'数据保存验证失败: 保存了 {units} 套，但数据库最新记录是 {latest.get("available_units") if latest else "无"}'
+                with refresh_lock:
+                    refresh_status['is_running'] = False
+                    refresh_status['end_time'] = end_time
+                    refresh_status['error'] = error_msg
+                    refresh_status['current_step'] = '数据保存验证失败'
+                _add_log(error_msg)
         else:
             error_msg = '数据保存到数据库失败'
             with refresh_lock:
