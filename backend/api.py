@@ -63,22 +63,32 @@ def get_latest_properties():
 @app.route('/api/refresh', methods=['POST'])
 def refresh_data():
     """手动刷新数据"""
-    result = scraper.fetch_all_properties()
-    if result:
-        units = result['total_available_units']
-        projects = result['total_projects']
-        db.save_record(units, projects, result)
+    try:
+        result = scraper.fetch_all_properties()
+        if result:
+            units = result['total_available_units']
+            projects = result['total_projects']
+            db.save_record(units, projects, result)
+            return jsonify({
+                'success': True,
+                'data': {
+                    'available_units': units,
+                    'total_projects': projects
+                }
+            })
         return jsonify({
-            'success': True,
-            'data': {
-                'available_units': units,
-                'total_projects': projects
-            }
-        })
-    return jsonify({
-        'success': False,
-        'error': '数据抓取失败'
-    }), 500
+            'success': False,
+            'error': '数据抓取失败'
+        }), 500
+    except Exception as e:
+        import traceback
+        error_msg = str(e)
+        print(f"刷新数据时发生错误: {error_msg}")
+        print(traceback.format_exc())
+        return jsonify({
+            'success': False,
+            'error': f'服务器错误: {error_msg}'
+        }), 500
 
 if __name__ == '__main__':
     import os

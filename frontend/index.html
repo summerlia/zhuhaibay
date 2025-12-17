@@ -1804,8 +1804,26 @@
             
             try {
                 const response = await fetch(`${API_BASE}/refresh`, {
-                    method: 'POST'
+                    method: 'POST',
+                    signal: AbortSignal.timeout(300000) // 5分钟超时
                 });
+                
+                // 检查响应状态
+                if (!response.ok) {
+                    let errorMsg = `HTTP ${response.status}: ${response.statusText}`;
+                    try {
+                        const errorData = await response.json();
+                        errorMsg = errorData.error || errorMsg;
+                    } catch (e) {
+                        // 如果无法解析 JSON，使用状态文本
+                        const text = await response.text();
+                        if (text) {
+                            errorMsg = text.substring(0, 200);
+                        }
+                    }
+                    throw new Error(errorMsg);
+                }
+                
                 const result = await response.json();
                 
                 if (result.success) {
@@ -1818,7 +1836,17 @@
                 }
             } catch (error) {
                 console.error('刷新失败:', error);
-                alert('刷新失败，请检查后端服务是否启动');
+                let errorMsg = '刷新失败';
+                if (error.name === 'AbortError' || error.name === 'TimeoutError') {
+                    errorMsg = '请求超时，数据抓取可能需要较长时间，请稍后再试';
+                } else if (error.message.includes('502') || error.message.includes('Bad Gateway')) {
+                    errorMsg = '服务器暂时不可用，可能是数据抓取时间过长，请稍后再试';
+                } else if (error.message.includes('Failed to fetch')) {
+                    errorMsg = '网络连接失败，请检查网络连接';
+                } else {
+                    errorMsg = '刷新失败: ' + error.message;
+                }
+                alert(errorMsg);
             } finally {
                 btn.disabled = false;
                 btn.textContent = '🔄 刷新数据';
