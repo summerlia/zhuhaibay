@@ -285,21 +285,33 @@ def refresh_data():
     # 检查是否正在刷新
     with refresh_lock:
         if refresh_status['is_running']:
+            # 返回轻量级响应（不包含 logs）
+            light_status = {
+                'is_running': refresh_status['is_running'],
+                'start_time': refresh_status.get('start_time'),
+                'current_step': refresh_status.get('current_step')
+            }
             return jsonify({
                 'success': False,
                 'error': '数据刷新任务正在进行中，请稍后再试',
-                'status': refresh_status.copy()
+                'status': light_status
             }), 429
         
         # 启动后台任务
         thread = threading.Thread(target=_refresh_task, daemon=True)
         thread.start()
     
-    # 立即返回响应，避免超时
+    # 立即返回轻量级响应，避免超时和输出过大
+    # 不包含 logs 数组，减少响应大小
+    light_status = {
+        'is_running': refresh_status['is_running'],
+        'start_time': refresh_status.get('start_time'),
+        'current_step': refresh_status.get('current_step')
+    }
     return jsonify({
         'success': True,
         'message': '数据刷新任务已启动，正在后台处理中',
-        'status': refresh_status.copy()
+        'status': light_status
     })
 
 @app.route('/api/refresh/status', methods=['GET'])
