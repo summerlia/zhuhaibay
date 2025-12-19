@@ -1,6 +1,6 @@
 import json
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import List, Dict, Optional
 from supabase import create_client, Client
 
@@ -54,10 +54,52 @@ class Database:
             # 不抛出异常，允许继续运行（表可能已经存在）
     
     def save_record(self, available_units: int, total_projects: int = 0, details: Optional[Dict] = None) -> bool:
-        """保存一条记录"""
+        """保存一条记录（同一天的数据会覆盖，只保留最新数据）"""
         try:
             print(f"开始保存记录到 Supabase: {available_units} 套, {total_projects} 个项目")
             timestamp = datetime.now().isoformat()
+            today_date = datetime.now().date().isoformat()  # 获取今天的日期，格式：YYYY-MM-DD
+            
+            # 先检查并删除今天的所有记录
+            print(f"检查今天 ({today_date}) 是否已有记录...")
+            try:
+                # 计算今天的开始和结束时间
+                today_start = f"{today_date}T00:00:00"
+                tomorrow_date = (datetime.now().date() + timedelta(days=1)).isoformat()
+                tomorrow_start = f"{tomorrow_date}T00:00:00"
+                
+                # 查询今天的所有主记录（使用 gte 和 lt）
+                today_records = self.supabase.table('property_records')\
+                    .select('id')\
+                    .gte('timestamp', today_start)\
+                    .lt('timestamp', tomorrow_start)\
+                    .execute()
+                
+                if today_records.data and len(today_records.data) > 0:
+                    print(f"发现今天已有 {len(today_records.data)} 条主记录，将删除并覆盖...")
+                    # 删除今天的所有主记录
+                    for record in today_records.data:
+                        self.supabase.table('property_records').delete().eq('id', record['id']).execute()
+                    print("已删除今天的主记录")
+                
+                # 查询今天的所有详细记录
+                today_details = self.supabase.table('property_details')\
+                    .select('id')\
+                    .gte('timestamp', today_start)\
+                    .lt('timestamp', tomorrow_start)\
+                    .execute()
+                
+                if today_details.data and len(today_details.data) > 0:
+                    print(f"发现今天已有 {len(today_details.data)} 条详细记录，将删除并覆盖...")
+                    # 删除今天的所有详细记录
+                    for detail in today_details.data:
+                        self.supabase.table('property_details').delete().eq('id', detail['id']).execute()
+                    print("已删除今天的详细记录")
+            except Exception as e:
+                print(f"删除今天记录时出现错误（可能今天没有记录）: {e}")
+                import traceback
+                print(traceback.format_exc())
+                # 继续执行，可能今天确实没有记录
             
             # 准备主记录数据
             record_data = {
