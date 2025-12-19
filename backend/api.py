@@ -277,7 +277,7 @@ def _refresh_task():
         _add_log(f"刷新数据时发生错误: {error_msg}")
         _add_log(f"错误详情: {traceback.format_exc()}")
 
-@app.route('/api/refresh', methods=['POST'])
+@app.route('/api/refresh', methods=['GET'])
 def refresh_data():
     """手动刷新数据（异步执行）"""
     global refresh_status
