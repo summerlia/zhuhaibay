@@ -319,10 +319,27 @@ def refresh_status_endpoint():
     """获取刷新任务状态"""
     global refresh_status
     with refresh_lock:
+        # 返回轻量级状态，不包含 logs
+        light_status = {
+            'is_running': refresh_status['is_running'],
+            'start_time': refresh_status.get('start_time'),
+            'end_time': refresh_status.get('end_time'),
+            'current_step': refresh_status.get('current_step'),
+            'error': refresh_status.get('error'),
+            'result': refresh_status.get('result')
+        }
         return jsonify({
             'success': True,
-            'status': refresh_status.copy()
+            'status': light_status
         })
+
+@app.route('/health', methods=['GET'])
+def health_check():
+    """健康检查端点，返回轻量级响应"""
+    return jsonify({
+        'status': 'ok',
+        'service': 'zhuhaibay'
+    }), 200
 
 if __name__ == '__main__':
     import os
