@@ -4,4 +4,5 @@ schedule==1.2.1
 flask==3.0.0
 flask-cors==4.0.0
 gunicorn==21.2.0
-supabase==2.3.4
+supabase==2.9.0
+httpx>=0.26.0
