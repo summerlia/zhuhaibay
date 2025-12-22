@@ -333,7 +333,7 @@ def refresh_status_endpoint():
             'status': light_status
         })
 
-@app.route('/api/health', methods=['GET'])
+@app.route('/health', methods=['GET'])
 def health_check():
     """健康检查端点，返回轻量级响应"""
     return jsonify({
