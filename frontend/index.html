@@ -1953,8 +1953,19 @@
                     btn.textContent = '✅ 刷新完成';
                     const projects = status.result.projects || 0;
                     const units = status.result.units || 0;
+                    console.log('刷新成功，开始重新加载数据...');
+                    
+                    // 重新加载楼盘列表（可能有新楼盘）
+                    await loadPropertyList();
+                    
+                    // 根据当前选择的楼盘重新加载数据
+                    if (currentProperty && allProperties.includes(currentProperty)) {
+                        await loadPropertyData(currentProperty);
+                    } else {
+                        await loadData();
+                    }
+                    
                     alert(`数据刷新成功！\n在售项目: ${projects} 个\n待售套数: ${units} 套`);
-                    await loadData();
                     setTimeout(() => {
                         btn.textContent = '🔄 刷新数据';
                         document.getElementById('refreshStatus').style.display = 'none';
