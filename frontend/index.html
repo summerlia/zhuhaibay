@@ -1975,7 +1975,7 @@
             
             try {
                 const response = await fetch(`${API_BASE}/refresh`, {
-                    method: 'POST',
+                    method: 'GET',
                     signal: AbortSignal.timeout(30000) // 30秒超时（只需等待任务启动）
                 });
                 
